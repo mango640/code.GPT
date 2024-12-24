@@ -3,25 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>블록 코딩 시스템</title>
+    <title>코드 지피티 블록 코딩</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             display: flex;
-            height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
+            background-color: #f7f7f7;
         }
 
-        /* 툴박스 스타일 */
         .toolbox {
-            width: 300px;
-            background-color: #f1f1f1;
+            width: 250px;
+            background-color: #ffffff;
             padding: 10px;
             border-right: 2px solid #ccc;
             overflow-y: auto;
-            display: flex;
-            flex-direction: column;
+            height: 100vh;
         }
 
         .category {
@@ -38,19 +35,6 @@
             background-color: #FF4500;
         }
 
-        /* 캔버스 스타일 */
-        .canvas {
-            flex-grow: 1;
-            background-color: #f9f9f9;
-            display: flex;
-            justify-content: flex-start;
-            align-items: flex-start;
-            border: 2px dashed #ccc;
-            position: relative;
-            height: 100vh;
-        }
-
-        /* 드래그 가능한 블록 스타일 */
         .block {
             width: 120px;
             height: 50px;
@@ -65,6 +49,17 @@
             font-size: 16px;
         }
 
+        .canvas {
+            flex-grow: 1;
+            background-color: #f9f9f9;
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+            border: 2px dashed #ccc;
+            position: relative;
+            min-height: 100vh;
+        }
+
         .dropped-block {
             width: 120px;
             height: 50px;
@@ -77,13 +72,13 @@
             border-radius: 5px;
             user-select: none;
             font-size: 16px;
+            transition: all 0.2s ease;
         }
 
         .dropped-block.selected {
             background-color: #FFD700;
         }
 
-        /* 실행 버튼 */
         .run-btn {
             position: fixed;
             bottom: 20px;
@@ -102,31 +97,63 @@
     </style>
 </head>
 <body>
-    <!-- 툴박스 -->
     <div id="toolbox" class="toolbox">
         <div class="category" id="start-category">시작</div>
         <div class="category" id="control-category">제어</div>
         <div class="category" id="move-category">이동</div>
+        <div class="category" id="shape-category">모양</div>
+        <div class="category" id="variable-category">변수</div>
+        <div class="category" id="condition-category">조건</div>
+        <div class="category" id="repeat-category">반복</div>
+        <div class="category" id="math-category">수학</div>
+        <div class="category" id="output-category">출력</div>
     </div>
 
-    <!-- 캔버스 (코드 실행 영역) -->
     <div id="canvas" class="canvas"></div>
 
-    <!-- 실행 버튼 -->
     <button id="run-btn" class="run-btn">실행</button>
 
     <script>
-        // 각 카테고리 블록을 클릭하면 해당 블록을 캔버스로 드래그할 수 있게 구현
+        let blockIdCounter = 1;
+        let selectedBlock = null;
+        let blocksOnCanvas = [];
+        let variables = {};
+
+        // 툴박스에서 블록 선택 시 동작
         document.getElementById("start-category").addEventListener("click", function() {
             createBlock("시작", "#FF6347", "start");
         });
 
         document.getElementById("control-category").addEventListener("click", function() {
-            createBlock("제어", "#1E90FF", "control");
+            createBlock("반복", "#1E90FF", "control");
         });
 
         document.getElementById("move-category").addEventListener("click", function() {
             createBlock("이동", "#32CD32", "move");
+        });
+
+        document.getElementById("shape-category").addEventListener("click", function() {
+            createBlock("모양", "#FFD700", "shape");
+        });
+
+        document.getElementById("variable-category").addEventListener("click", function() {
+            createBlock("변수", "#8A2BE2", "variable");
+        });
+
+        document.getElementById("condition-category").addEventListener("click", function() {
+            createBlock("조건", "#00CED1", "condition");
+        });
+
+        document.getElementById("repeat-category").addEventListener("click", function() {
+            createBlock("반복문", "#32CD32", "repeat");
+        });
+
+        document.getElementById("math-category").addEventListener("click", function() {
+            createBlock("수학", "#FFD700", "math");
+        });
+
+        document.getElementById("output-category").addEventListener("click", function() {
+            createBlock("출력", "#32CD32", "output");
         });
 
         // 블록 생성 함수
@@ -135,14 +162,23 @@
             block.classList.add("block");
             block.style.backgroundColor = color;
             block.innerHTML = category;
-
+            block.id = "block-" + blockIdCounter++;
             block.draggable = true;
+            block.dataset.type = type;
+
             block.addEventListener("dragstart", function(e) {
-                e.dataTransfer.setData("text", e.target.innerText);
+                e.dataTransfer.setData("text", block.id);
             });
 
-            block.dataset.type = type;
-            document.getElementById("canvas").appendChild(block);
+            block.addEventListener("click", function() {
+                if (selectedBlock) {
+                    selectedBlock.classList.remove("selected");
+                }
+                block.classList.add("selected");
+                selectedBlock = block;
+            });
+
+            document.getElementById("toolbox").appendChild(block);
         }
 
         // 캔버스에 드래그 앤 드롭 구현
@@ -152,34 +188,30 @@
 
         document.getElementById("canvas").addEventListener("drop", function(e) {
             e.preventDefault();
-            const data = e.dataTransfer.getData("text");
-            let droppedBlock = document.createElement("div");
-            droppedBlock.classList.add("dropped-block");
-            droppedBlock.innerText = data;
-            droppedBlock.style.position = "absolute";
-            droppedBlock.style.left = `${e.clientX - 60}px`; // 위치 설정
-            droppedBlock.style.top = `${e.clientY - 25}px`;
-            document.getElementById("canvas").appendChild(droppedBlock);
+            let blockId = e.dataTransfer.getData("text");
+            let draggedBlock = document.getElementById(blockId);
+            let newBlock = draggedBlock.cloneNode(true);
+            newBlock.style.position = "absolute";
+            newBlock.style.left = `${e.clientX - 60}px`; // 위치 설정
+            newBlock.style.top = `${e.clientY - 25}px`;
 
-            droppedBlock.addEventListener("click", function() {
-                droppedBlock.classList.toggle("selected");
+            newBlock.addEventListener("click", function() {
+                if (selectedBlock) {
+                    selectedBlock.classList.remove("selected");
+                }
+                newBlock.classList.add("selected");
+                selectedBlock = newBlock;
             });
+
+            document.getElementById("canvas").appendChild(newBlock);
+            blocksOnCanvas.push(newBlock);
         });
 
         // 실행 버튼 클릭 시 블록 실행
         document.getElementById("run-btn").addEventListener("click", function() {
-            executeBlocks();
+            alert("코드 실행 결과를 확인해보세요!");
+            // 여기에 코드 실행 로직 추가
         });
-
-        // 블록 실행 로직 (예시)
-        function executeBlocks() {
-            let blocks = document.querySelectorAll(".dropped-block");
-            blocks.forEach(block => {
-                if (block.classList.contains("selected")) {
-                    alert(`블록 실행: ${block.innerText}`);
-                }
-            });
-        }
     </script>
 </body>
 </html>
